@@ -17,6 +17,7 @@ import android.util.Log
 import android.widget.CompoundButton
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
+import java.util.*
 
 private const val PERMISSION_REQUEST = 10
 
@@ -88,7 +89,10 @@ class MainActivity : AppCompatActivity() {
                     override fun onLocationChanged(location: Location?) {
                         if (location != null) {
                             locationGps = location
-
+                            txt_latitude.text=location.latitude.toString()
+                            txt_longitude.text=location.longitude.toString()
+                            textViewAlt.text=location.altitude.toString()
+                            textViewDT.text=Date().toString()
                             tv_result.append("\nGPS ")
                             tv_result.append("\nLatitude : " + locationGps!!.latitude)
                             tv_result.append("\nLongitude : " + locationGps!!.longitude)

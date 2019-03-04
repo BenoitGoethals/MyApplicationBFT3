@@ -17,24 +17,23 @@ import android.util.Log
 import android.widget.CompoundButton
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.*
 import java.util.*
 
 private const val PERMISSION_REQUEST = 10
 
 class MainActivity : AppCompatActivity() {
 
-
-    lateinit var locationManager: LocationManager
-    private var hasGps = false
-    private var hasNetwork = false
-    private var locationGps: Location? = null
-    private var locationNetwork: Location? = null
+    private lateinit var locationManager:LocationManager
+    private var job:Job? = null
+    private lateinit var  intentLOcal: Intent
 
     private var permissions = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         toggleButtonStartStop.setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
@@ -48,7 +47,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     enableView()
                 }
-                getLocation()
+         //       getLocation()
             } else {
                 disableView()
 
@@ -65,113 +64,37 @@ class MainActivity : AppCompatActivity() {
     private fun disableView() {
       //  btn_get_location.isEnabled = false
       //  btn_get_location.alpha = 0.5F
-        tv_result.text=""
+        job!!.cancel()
+        tv_result.text="Stopped"
+
+        Toast.makeText(this, "Stop", Toast.LENGTH_SHORT).show()
     }
 
     private fun enableView() {
       //  btn_get_location.isEnabled = true
         //btn_get_location.alpha = 1F
       //  btn_get_location.setOnClickListener { getLocation()}
-        Toast.makeText(this, "Done", Toast.LENGTH_SHORT).show()
-    }
+        job = GlobalScope.launch (Dispatchers.Main) {
 
-    @SuppressLint("MissingPermission")
-    private fun getLocation() {
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        hasGps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-        hasNetwork = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-        if (hasGps || hasNetwork) {
+            tv_result.text="Running"
+            while (true){
+               var loc = getLocation()
 
-            if (hasGps) {
-                Log.d("CodeAndroidLocation", "hasGps")
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 0F, object :
-                    LocationListener {
-                    override fun onLocationChanged(location: Location?) {
-                        if (location != null) {
-                            locationGps = location
-                            txt_latitude.text=location.latitude.toString()
-                            txt_longitude.text=location.longitude.toString()
-                            textViewAlt.text=location.altitude.toString()
-                            textViewDT.text=Date().toString()
-                            tv_result.append("\nGPS ")
-                            tv_result.append("\nLatitude : " + locationGps!!.latitude)
-                            tv_result.append("\nLongitude : " + locationGps!!.longitude)
-                            Log.d("CodeAndroidLocation", " GPS Latitude : " + locationGps!!.latitude)
-                            Log.d("CodeAndroidLocation", " GPS Longitude : " + locationGps!!.longitude)
-                        }
-                    }
+                delay(1000)
+               //     tv_result.text=loc.toString()
+                    txt_latitude.text= loc?.latitude.toString()
+                    txt_longitude.text= loc?.longitude.toString()
+                    textViewAlt.text=loc?.altitude.toString()
+                    textViewDT.text=loc?.time.toString()
 
-                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
 
-                    }
-
-                    override fun onProviderEnabled(provider: String?) {
-
-                    }
-
-                    override fun onProviderDisabled(provider: String?) {
-
-                    }
-
-                })
-
-                val localGpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                if (localGpsLocation != null)
-                    locationGps = localGpsLocation
             }
-            if (hasNetwork) {
-                Log.d("CodeAndroidLocation", "hasGps")
-                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 0F, object :
-                    LocationListener {
-                    override fun onLocationChanged(location: Location?) {
-                        if (location != null) {
-                            locationNetwork = location
-                            tv_result.append("\nNetwork ")
-                            tv_result.append("\nLatitude : " + locationNetwork!!.latitude)
-                            tv_result.append("\nLongitude : " + locationNetwork!!.longitude)
-                            Log.d("CodeAndroidLocation", " Network Latitude : " + locationNetwork!!.latitude)
-                            Log.d("CodeAndroidLocation", " Network Longitude : " + locationNetwork!!.longitude)
-                        }
-                    }
-
-                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-
-                    }
-
-                    override fun onProviderEnabled(provider: String?) {
-
-                    }
-
-                    override fun onProviderDisabled(provider: String?) {
-
-                    }
-
-                })
-
-                val localNetworkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                if (localNetworkLocation != null)
-                    locationNetwork = localNetworkLocation
-            }
-
-            if(locationGps!= null && locationNetwork!= null){
-                if(locationGps!!.accuracy > locationNetwork!!.accuracy){
-                    tv_result.append("\nNetwork ")
-                    tv_result.append("\nLatitude : " + locationNetwork!!.latitude)
-                    tv_result.append("\nLongitude : " + locationNetwork!!.longitude)
-                    Log.d("CodeAndroidLocation", " Network Latitude : " + locationNetwork!!.latitude)
-                    Log.d("CodeAndroidLocation", " Network Longitude : " + locationNetwork!!.longitude)
-                }else{
-                    tv_result.append("\nGPS ")
-                    tv_result.append("\nLatitude : " + locationGps!!.latitude)
-                    tv_result.append("\nLongitude : " + locationGps!!.longitude)
-                    Log.d("CodeAndroidLocation", " GPS Latitude : " + locationGps!!.latitude)
-                    Log.d("CodeAndroidLocation", " GPS Longitude : " + locationGps!!.longitude)
-                }
-            }
-
-        } else {
-            startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
         }
+
+
+
+
+        Toast.makeText(this, "Running", Toast.LENGTH_SHORT).show()
     }
 
     private fun checkPermission(permissionArray: Array<String>): Boolean {
@@ -203,4 +126,85 @@ class MainActivity : AppCompatActivity() {
 
         }
     }
+
+
+
+
+
+    @SuppressLint("MissingPermission")
+    private fun getPosition(provider:String): Location? {
+        var locationPos: Location? = null
+
+        Log.d("CodeAndroidLocation", provider)
+        locationManager.requestLocationUpdates(provider, 5000, 0F, object :
+            LocationListener {
+            override fun onLocationChanged(location: Location?) {
+                if (location != null) {
+                    locationPos = location
+                    Log.d("CodeAndroidLocation", provider + "  Latitude : " + locationPos!!.latitude)
+                    Log.d("CodeAndroidLocation", provider + "  Longitude : " + locationPos!!.longitude)
+                }
+            }
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+
+            }
+            override fun onProviderEnabled(provider: String?) {
+
+            }
+            override fun onProviderDisabled(provider: String?) {
+
+            }
+
+        }
+
+
+        )
+
+        val localGpsLocation = locationManager.getLastKnownLocation(provider)
+        if (localGpsLocation != null)
+            return localGpsLocation
+        else
+            return locationPos
+    }
+
+
+    @SuppressLint("MissingPermission")
+    private suspend fun getLocation(): Location? {
+        var locationGps: Location? = null
+        var locationNetwork: Location? = null
+        var location:Location?=null
+        var   hasGps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        var  hasNetwork = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+        if (hasGps) {
+            locationGps=getPosition(LocationManager.GPS_PROVIDER)
+            location=locationGps
+        }
+        if (hasNetwork) {
+            locationNetwork=getPosition(LocationManager.NETWORK_PROVIDER)
+            location=locationNetwork
+        }
+
+        if(locationGps!= null && locationNetwork!= null){
+            if(locationGps!!.accuracy > locationNetwork!!.accuracy){
+                Log.d("CodeAndroidLocation", " Network Latitude : " + locationNetwork!!.latitude)
+                Log.d("CodeAndroidLocation", " Network Longitude : " + locationNetwork!!.longitude)
+                location=locationNetwork
+            }else{
+                Log.d("CodeAndroidLocation", " GPS Latitude : " + locationGps!!.latitude)
+                Log.d("CodeAndroidLocation", " GPS Longitude : " + locationGps!!.longitude)
+                location=locationGps
+            }
+
+        }
+        else
+        {
+            Log.d("CodeAndroidLocation", "  Latitude : " + locationGps!!.latitude)
+            Log.d("CodeAndroidLocation", "  Longitude : " + locationGps!!.longitude)
+        }
+
+
+        return location
+    }
+
 }

@@ -14,8 +14,13 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.widget.CompoundButton
 import android.widget.Toast
+import com.github.kittinunf.fuel.Fuel
+import com.github.kittinunf.fuel.android.extension.responseJson
+import com.github.kittinunf.fuel.core.FuelManager
+import com.github.kittinunf.fuel.httpPost
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
 import java.util.*
@@ -34,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
+        FuelManager.instance.basePath = "http://demosmushtaq.16mb.com";
         toggleButtonStartStop.setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
                 Toast.makeText(this,"Turned On",Toast.LENGTH_LONG).show()
@@ -70,23 +75,65 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Stop", Toast.LENGTH_SHORT).show()
     }
 
+    fun getDeviceName(): String {
+        val manufacturer = Build.MANUFACTURER
+        val model = Build.MODEL
+        return if (model.startsWith(manufacturer)) {
+            capitalize(model)
+        } else {
+            capitalize(manufacturer) + " " + model
+        }
+    }
+
+
+    private fun capitalize(s: String?): String {
+        if (s == null || s.length == 0) {
+            return ""
+        }
+        val first = s[0]
+        return if (Character.isUpperCase(first)) {
+            s
+        } else {
+            Character.toUpperCase(first) + s.substring(1)
+        }
+    }
+
+
+
     private fun enableView() {
       //  btn_get_location.isEnabled = true
         //btn_get_location.alpha = 1F
       //  btn_get_location.setOnClickListener { getLocation()}
         job = GlobalScope.launch (Dispatchers.Main) {
 
-            tv_result.text="Running"
-            while (true){
+            tv_result.text="Running "+getDeviceName()
+            while (!job!!.isCancelled){
                var loc = getLocation()
+             //   GlobalScope.launch(){
 
+                    try {
+
+                        Fuel.post("api/post_sample.php", listOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.altitude.toString(),"time" to loc?.time.toString(), "id" to getDeviceName() )).responseJson { request, response, result ->
+                            tv_result.text=result.toString()
+                        }
+                    } catch (e: Exception) {
+
+                    } finally {
+
+                    }
+
+
+         //       khttp.post(
+           //         url = "http://httpbin.org/post",
+             //       json = mapOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.altitude.toString(),"time" to loc?.time.toString(), "id" to getDeviceName() ))
                 delay(1000)
+
                //     tv_result.text=loc.toString()
                     txt_latitude.text= loc?.latitude.toString()
                     txt_longitude.text= loc?.longitude.toString()
                     textViewAlt.text=loc?.altitude.toString()
                     textViewDT.text=loc?.time.toString()
-
+        //    }
 
             }
         }

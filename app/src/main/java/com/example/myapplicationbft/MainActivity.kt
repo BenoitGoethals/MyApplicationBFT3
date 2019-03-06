@@ -21,13 +21,24 @@ import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.android.extension.responseJson
 import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.httpPost
+import com.rabbitmq.client.ConnectionFactory
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
 import java.util.*
 
+import android.os.Handler
+import android.os.Message
+import android.widget.TextView
+import java.text.SimpleDateFormat
+
+
 private const val PERMISSION_REQUEST = 10
 
 class MainActivity : AppCompatActivity() {
+
+
+    private lateinit var rabService:RabbitService
+
 
     private lateinit var locationManager:LocationManager
     private var job:Job? = null
@@ -37,7 +48,26 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+       setContentView(R.layout.activity_main)
+
+        rabService= RabbitService()
+
+
+
+       // rabService.setupConnectionFactory()
+
+       // setupPubButton()
+
+        val incomingMessageHandler = object : Handler() {
+            override fun handleMessage(msg: Message) {
+                val message = msg.getData().getString("msg")
+               // val tv = findViewById<View>(R.id.textView) as TextView
+                val now = Date()
+                val ft = SimpleDateFormat("hh:mm:ss")
+               // tv.append(ft.format(now) + ' '.toString() + message + '\n'.toString())
+            }
+        }
+        rabService.subscribe(incomingMessageHandler)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         FuelManager.instance.basePath = "http://demosmushtaq.16mb.com";
         toggleButtonStartStop.setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
@@ -100,6 +130,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
+    private  var int:Int=0
     private fun enableView() {
       //  btn_get_location.isEnabled = true
         //btn_get_location.alpha = 1F
@@ -111,29 +142,25 @@ class MainActivity : AppCompatActivity() {
                var loc = getLocation()
              //   GlobalScope.launch(){
 
-                    try {
 
-                        Fuel.post("api/post_sample.php", listOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.altitude.toString(),"time" to loc?.time.toString(), "id" to getDeviceName() )).responseJson { request, response, result ->
-                            tv_result.text=result.toString()
-                        }
-                    } catch (e: Exception) {
+                        rabService.publishToAMQP(loc)
+                tv_result.text="Send "+int
+                       // Fuel.post("api/post_sample.php", listOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.alt,"time" to loc?.date, "id" to getDeviceName() )).responseJson { request, response, result ->
+                         //   tv_result.text=result.toString()
 
-                    } finally {
-
-                    }
 
 
          //       khttp.post(
            //         url = "http://httpbin.org/post",
              //       json = mapOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.altitude.toString(),"time" to loc?.time.toString(), "id" to getDeviceName() ))
-                delay(1000)
+                delay(500)
 
-               //     tv_result.text=loc.toString()
-                    txt_latitude.text= loc?.latitude.toString()
-                    txt_longitude.text= loc?.longitude.toString()
-                    textViewAlt.text=loc?.altitude.toString()
-                    textViewDT.text=loc?.time.toString()
-        //    }
+                    tv_result.text=loc.toString()
+                    txt_latitude.text= loc?.latitude
+                    txt_longitude.text= loc?.longitude
+                    textViewAlt.text=loc?.alt
+                    textViewDT.text=loc?.date
+                //    }
 
             }
         }
@@ -216,7 +243,7 @@ class MainActivity : AppCompatActivity() {
 
 
     @SuppressLint("MissingPermission")
-    private suspend fun getLocation(): Location? {
+    private suspend fun getLocation(): LocationJson? {
         var locationGps: Location? = null
         var locationNetwork: Location? = null
         var location:Location?=null
@@ -251,7 +278,12 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        return location
+        return LocationJson(location?.latitude.toString(),location?.longitude.toString(),location?.altitude.toString(),Date().toString(),getDeviceName())
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        rabService.onDestroy()
+
+    }
 }

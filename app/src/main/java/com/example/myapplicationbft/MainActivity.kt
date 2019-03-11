@@ -12,23 +12,18 @@ import android.location.LocationManager
 import android.os.Build
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
-import android.view.View
 import android.widget.CompoundButton
 import android.widget.Toast
-import com.github.kittinunf.fuel.Fuel
-import com.github.kittinunf.fuel.android.extension.responseJson
 import com.github.kittinunf.fuel.core.FuelManager
-import com.github.kittinunf.fuel.httpPost
-import com.rabbitmq.client.ConnectionFactory
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
 import java.util.*
 
 import android.os.Handler
 import android.os.Message
-import android.widget.TextView
+import me.piruin.geok.Datum
+import me.piruin.geok.LatLng
 import java.text.SimpleDateFormat
 
 
@@ -53,11 +48,6 @@ class MainActivity : AppCompatActivity() {
         rabService= RabbitService()
 
 
-
-       // rabService.setupConnectionFactory()
-
-       // setupPubButton()
-
         val incomingMessageHandler = object : Handler() {
             override fun handleMessage(msg: Message) {
                 val message = msg.getData().getString("msg")
@@ -67,9 +57,9 @@ class MainActivity : AppCompatActivity() {
                // tv.append(ft.format(now) + ' '.toString() + message + '\n'.toString())
             }
         }
-        rabService.subscribe(incomingMessageHandler)
+       // rabService.subscribe(incomingMessageHandler)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        FuelManager.instance.basePath = "http://demosmushtaq.16mb.com";
+
         toggleButtonStartStop.setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
                 Toast.makeText(this,"Turned On",Toast.LENGTH_LONG).show()
@@ -82,7 +72,6 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     enableView()
                 }
-         //       getLocation()
             } else {
                 disableView()
 
@@ -97,8 +86,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun disableView() {
-      //  btn_get_location.isEnabled = false
-      //  btn_get_location.alpha = 0.5F
+
         job!!.cancel()
         tv_result.text="Stopped"
 
@@ -132,35 +120,26 @@ class MainActivity : AppCompatActivity() {
 
     private  var int:Int=0
     private fun enableView() {
-      //  btn_get_location.isEnabled = true
-        //btn_get_location.alpha = 1F
-      //  btn_get_location.setOnClickListener { getLocation()}
+
         job = GlobalScope.launch (Dispatchers.Main) {
 
             tv_result.text="Running "+getDeviceName()
             while (!job!!.isCancelled){
                var loc = getLocation()
-             //   GlobalScope.launch(){
 
-
+                ++int
+               var utm=  LatLng(loc?.longitude!!.toDouble(),loc?.latitude.toDouble(),loc?.alt.toDouble()).toUtm(Datum.WSG48)
                         rabService.publishToAMQP(loc)
-                tv_result.text="Send "+int
-                       // Fuel.post("api/post_sample.php", listOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.alt,"time" to loc?.date, "id" to getDeviceName() )).responseJson { request, response, result ->
-                         //   tv_result.text=result.toString()
+                tv_result.text= "Send $int ${utm.toString()}"
 
-
-
-         //       khttp.post(
-           //         url = "http://httpbin.org/post",
-             //       json = mapOf("latitude" to loc?.latitude.toString(), "longitude" to loc?.longitude.toString(),"altitude" to loc?.altitude.toString(),"time" to loc?.time.toString(), "id" to getDeviceName() ))
                 delay(500)
 
-                    tv_result.text=loc.toString()
+
                     txt_latitude.text= loc?.latitude
                     txt_longitude.text= loc?.longitude
                     textViewAlt.text=loc?.alt
                     textViewDT.text=loc?.date
-                //    }
+
 
             }
         }
@@ -208,15 +187,11 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun getPosition(provider:String): Location? {
         var locationPos: Location? = null
-
-        Log.d("CodeAndroidLocation", provider)
         locationManager.requestLocationUpdates(provider, 5000, 0F, object :
             LocationListener {
             override fun onLocationChanged(location: Location?) {
                 if (location != null) {
                     locationPos = location
-                    Log.d("CodeAndroidLocation", provider + "  Latitude : " + locationPos!!.latitude)
-                    Log.d("CodeAndroidLocation", provider + "  Longitude : " + locationPos!!.longitude)
                 }
             }
             override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
@@ -231,7 +206,6 @@ class MainActivity : AppCompatActivity() {
 
         }
 
-
         )
 
         val localGpsLocation = locationManager.getLastKnownLocation(provider)
@@ -243,7 +217,7 @@ class MainActivity : AppCompatActivity() {
 
 
     @SuppressLint("MissingPermission")
-    private suspend fun getLocation(): LocationJson? {
+    private suspend fun getLocation(): LocationBft? {
         var locationGps: Location? = null
         var locationNetwork: Location? = null
         var location:Location?=null
@@ -261,24 +235,16 @@ class MainActivity : AppCompatActivity() {
 
         if(locationGps!= null && locationNetwork!= null){
             if(locationGps!!.accuracy > locationNetwork!!.accuracy){
-                Log.d("CodeAndroidLocation", " Network Latitude : " + locationNetwork!!.latitude)
-                Log.d("CodeAndroidLocation", " Network Longitude : " + locationNetwork!!.longitude)
+
                 location=locationNetwork
             }else{
-                Log.d("CodeAndroidLocation", " GPS Latitude : " + locationGps!!.latitude)
-                Log.d("CodeAndroidLocation", " GPS Longitude : " + locationGps!!.longitude)
+
                 location=locationGps
             }
 
         }
-        else
-        {
-            Log.d("CodeAndroidLocation", "  Latitude : " + locationGps!!.latitude)
-            Log.d("CodeAndroidLocation", "  Longitude : " + locationGps!!.longitude)
-        }
 
-
-        return LocationJson(location?.latitude.toString(),location?.longitude.toString(),location?.altitude.toString(),Date().toString(),getDeviceName())
+        return LocationBft(location?.latitude.toString(),location?.longitude.toString(),location?.altitude.toString(),Date().toString(),getDeviceName())
     }
 
     override fun onDestroy() {

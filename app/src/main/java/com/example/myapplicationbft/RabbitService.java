@@ -1,16 +1,9 @@
 package com.example.myapplicationbft;
 
-import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
+import com.google.gson.Gson;
 import com.rabbitmq.client.*;
-
-import java.net.URISyntaxException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.LinkedBlockingDeque;
 
 public class RabbitService {
     Thread subscribeThread;
@@ -32,7 +25,7 @@ public class RabbitService {
   private  ConnectionFactory factory = new ConnectionFactory();
 
     private void setupConnectionFactory() {
-        String uri = "192.168.0.190";
+        String uri = "192.168.0.123";
 
             factory.setAutomaticRecoveryEnabled(false);
           //  factory.setUri(uri);
@@ -41,7 +34,7 @@ public class RabbitService {
         factory.setPassword("test");
     }
 
-    public void publishToAMQP(LocationJson loc) {
+    public void publishToAMQP(LocationBft loc) {
         Thread thread = new Thread(new Runnable() {
 
             @Override
@@ -53,9 +46,14 @@ public class RabbitService {
 
 
                     try{
-                        ch.queueDeclare("bft-queue", false, false, false, null);
-                    //    ch.exchangeDeclare("bft", BuiltinExchangeType.DIRECT);
-                        ch.basicPublish("", "bft-queue", null, loc.toString().getBytes());
+                        Gson gson = new Gson();
+
+                        String jsonInString = gson.toJson(loc);
+                        ch.exchangeDeclare("bft", "direct", true);
+                        ch.queueDeclare("bft-queue", true, false, false, null);
+                        ch.queueBind("bft-queue", "bft", "bft");
+
+                        ch.basicPublish("bft", "bft", null,jsonInString.getBytes());
                         Log.d("", "[s] " + loc);
                         ch.waitForConfirmsOrDie();
                     } catch (Exception e){
@@ -86,49 +84,4 @@ public class RabbitService {
 
 
 
-    void subscribe(final Handler handler)
-    {
-        /*
-    }
-        subscribeThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                /*
-                while(true) {
-                    try {
-                        Connection connection = factory.newConnection();
-                        Channel channel = connection.createChannel();
-                        channel.basicQos(1);
-                        AMQP.Queue.DeclareOk q = channel.queueDeclare();
-                        channel.queueBind(q.getQueue(), "amq.fanout", "chat");
-                        AMQP.Queue consumer = new QueueingConsumer(channel);
-                        channel.basicConsume(q.getQueue(), true, consumer);
-
-                        while (true) {
-                            QueueingConsumer.Delivery delivery = consumer.nextDelivery();
-                            String message = new String(delivery.getBody());
-                            Log.d("","[r] " + message);
-                            Message msg = handler.obtainMessage();
-                            Bundle bundle = new Bundle();
-                            bundle.putString("msg", message);
-                            msg.setData(bundle);
-                            handler.sendMessage(msg);
-                        }
-                    } catch (InterruptedException e) {
-                        break;
-                    } catch (Exception e1) {
-                        Log.d("", "Connection broken: " + e1.getClass().getName());
-                        try {
-                            Thread.sleep(5000); //sleep and then try again
-                        } catch (InterruptedException e) {
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-
-        subscribeThread.start();
-        */
-    }
 }

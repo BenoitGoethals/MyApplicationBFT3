@@ -132,7 +132,7 @@ class MainActivity : AppCompatActivity() {
                         rabService.publishToAMQP(loc)
                 tv_result.text= "Send $int ${utm.toString()}"
 
-                delay(500)
+                delay(10000)
 
 
                     txt_latitude.text= loc?.latitude
@@ -218,6 +218,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private suspend fun getLocation(): LocationBft? {
+
         var locationGps: Location? = null
         var locationNetwork: Location? = null
         var location:Location?=null
@@ -244,7 +245,7 @@ class MainActivity : AppCompatActivity() {
 
         }
 
-        return LocationBft(location?.latitude.toString(),location?.longitude.toString(),location?.altitude.toString(),Date().toString(),getDeviceName())
+        return LocationBft(location?.longitude.toString(),location?.latitude.toString(),location?.altitude.toString(),Date().toString(),"1234", "12345")
     }
 
     override fun onDestroy() {
